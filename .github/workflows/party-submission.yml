@@ -1,0 +1,47 @@
+name: Process Party Submission
+
+on:
+  repository_dispatch:
+    types: [party_submission]
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Create event file
+        run: |
+          mkdir -p events
+          FILENAME=$(echo "${{ github.event.client_payload.eventName }}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g').md
+          
+          cat > "events/$FILENAME" << 'EOF'
+          # ${{ github.event.client_payload.eventName }}
+
+          **Date:** ${{ github.event.client_payload.date }}
+          **Location:** ${{ github.event.client_payload.location }}
+          **Organizer:** ${{ github.event.client_payload.organizer }}
+
+          ## Description
+          ${{ github.event.client_payload.description }}
+          EOF
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Add event: ${{ github.event.client_payload.eventName }}"
+          branch: event/${{ github.run_number }}
+          title: "New Event: ${{ github.event.client_payload.eventName }}"
+          body: |
+            ## Party Event Submission
+            
+            **Event:** ${{ github.event.client_payload.eventName }}
+            **Date:** ${{ github.event.client_payload.date }}
+            **Location:** ${{ github.event.client_payload.location }}
+            **Organizer:** ${{ github.event.client_payload.organizer }}
+            
+            ---
+            Auto-generated from form submission.
+          labels: event-submission

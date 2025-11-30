@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Party Event Submission</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+        h1 { color: #667eea; margin-bottom: 10px; }
+        .subtitle { color: #666; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; }
+        input, textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; transition: border 0.3s; }
+        input:focus, textarea:focus { outline: none; border-color: #667eea; }
+        textarea { min-height: 100px; resize: vertical; font-family: inherit; }
+        button { background: #667eea; color: white; padding: 14px; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.3s; }
+        button:hover { background: #5568d3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .success { background: #d4edda; color: #155724; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: none; }
+        .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🎉 Party Event Submission</h1>
+            <p class="subtitle">Submit your party details and we'll create a PR for review!</p>
+            
+            <div class="success" id="successMessage">
+                ✅ Success! Your party event has been submitted. Check the Pull Requests tab!
+            </div>
+            <div class="error" id="errorMessage"></div>
+
+            <form id="partyForm">
+                <div class="form-group">
+                    <label for="eventName">Event Name *</label>
+                    <input type="text" id="eventName" required placeholder="e.g., Summer BBQ Party">
+                </div>
+
+                <div class="form-group">
+                    <label for="date">Date *</label>
+                    <input type="date" id="date" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="location">Location *</label>
+                    <input type="text" id="location" required placeholder="e.g., Central Park">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description *</label>
+                    <textarea id="description" required placeholder="Tell us about your party..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="organizer">Your Name *</label>
+                    <input type="text" id="organizer" required placeholder="e.g., John Doe">
+                </div>
+
+                <button type="submit" id="submitBtn">Submit Party Event</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('partyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const successMsg = document.getElementById('successMessage');
+            const errorMsg = document.getElementById('errorMessage');
+            
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+
+            const formData = {
+                eventName: document.getElementById('eventName').value,
+                date: document.getElementById('date').value,
+                location: document.getElementById('location').value,
+                description: document.getElementById('description').value,
+                organizer: document.getElementById('organizer').value
+            };
+
+            try {
+                const response = await fetch('https://api.github.com/repos/merlinnaidoo/form-to-pr-test/dispatches', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        event_type: 'party_submission',
+                        client_payload: formData
+                    })
+                });
+
+                if (response.ok || response.status === 204) {
+                    successMsg.style.display = 'block';
+                    document.getElementById('partyForm').reset();
+                } else {
+                    throw new Error('Submission failed');
+                }
+            } catch (error) {
+                errorMsg.textContent = '❌ Submission failed. Please try again.';
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Submit Party Event';
+            }
+        });
+    </script>
+</body>
+</html>
