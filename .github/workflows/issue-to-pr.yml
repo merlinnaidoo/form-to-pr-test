@@ -8,9 +8,15 @@ jobs:
   create-pr:
     if: contains(github.event.issue.labels.*.name, 'event-submission')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create event file
         run: |
@@ -20,23 +26,21 @@ jobs:
 
           ${{ github.event.issue.body }}
           EOF
-          
-          echo "Created file:"
-          cat "events/event-${{ github.event.issue.number }}.md"
 
-      - name: Create branch and commit
+      - name: Create branch, commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b event-${{ github.event.issue.number }}
           git add events/
           git commit -m "Add event from issue #${{ github.event.issue.number }}"
-          git push origin event-${{ github.event.issue.number }}
+          git push -u origin event-${{ github.event.issue.number }}
 
-      - name: Create PR
+      - name: Create PR and close issue
         uses: actions/github-script@v6
         with:
           script: |
+            // Create PR
             const pr = await github.rest.pulls.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -46,22 +50,20 @@ jobs:
               body: 'Auto-generated from issue #${{ github.event.issue.number }}\n\nCloses #${{ github.event.issue.number }}'
             });
             
+            // Add label to PR
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: pr.data.number,
               labels: ['event-submission']
             });
-
-      - name: Close issue
-        uses: actions/github-script@v6
-        with:
-          script: |
+            
+            // Comment and close issue
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '✅ Your submission has been converted to a Pull Request!'
+              body: '✅ Your submission has been converted to Pull Request #' + pr.data.number
             });
             
             await github.rest.issues.update({
