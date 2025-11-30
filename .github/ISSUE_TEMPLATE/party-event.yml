@@ -3,11 +3,23 @@ description: Submit a party event
 title: "[Event]: "
 labels: ["event-submission"]
 body:
+  - type: dropdown
+    id: event-type
+    attributes:
+      label: Event Type
+      options:
+        - Birthday Party
+        - BBQ Party
+        - Holiday Party
+        - Office Party
+        - Wedding Reception
+    validations:
+      required: true
   - type: input
     id: event-name
     attributes:
       label: Event Name
-      placeholder: e.g., Summer BBQ Party
+      placeholder: e.g., John's 30th Birthday Bash
     validations:
       required: true
   - type: input
