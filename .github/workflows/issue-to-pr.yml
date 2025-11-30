@@ -41,22 +41,30 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Add event from issue #${{ github.event.issue.number }}"
+          commit-message: "Add event from submission"
           branch: event/issue-${{ github.event.issue.number }}
           title: "Event: ${{ github.event.issue.title }}"
           body: |
-            Closes #${{ github.event.issue.number }}
+            Auto-generated from submission.
             
-            Auto-generated from issue submission.
+            Review and merge to publish the event.
           labels: event-submission
 
-      - name: Comment on issue
+      - name: Close and comment on issue
         uses: actions/github-script@v6
         with:
           script: |
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '✅ Thanks! A pull request has been created for review.'
-            })
+              body: '✅ Thank you! Your submission has been converted to a Pull Request for review. This issue will be closed automatically.'
+            });
+            
+            await github.rest.issues.update({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              state_reason: 'completed'
+            });
