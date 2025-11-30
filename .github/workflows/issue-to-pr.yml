@@ -16,19 +16,25 @@ jobs:
         run: |
           mkdir -p events
           
-          # Extract data from issue body
-          ISSUE_BODY="${{ github.event.issue.body }}"
-          EVENT_NAME=$(echo "$ISSUE_BODY" | grep -A1 "Event Name" | tail -1 | xargs)
-          DATE=$(echo "$ISSUE_BODY" | grep -A1 "Date" | tail -1 | xargs)
-          LOCATION=$(echo "$ISSUE_BODY" | grep -A1 "Location" | tail -1 | xargs)
-          ORGANIZER=$(echo "$ISSUE_BODY" | grep -A1 "Your Name" | tail -1 | xargs)
-          DESCRIPTION=$(echo "$ISSUE_BODY" | sed -n '/Description/,/Your Name/p' | sed '1d;$d' | xargs)
+          # Parse issue body
+          BODY=$(cat << 'EOFBODY'
+          ${{ github.event.issue.body }}
+          EOFBODY
+          )
+          
+          EVENT_TYPE=$(echo "$BODY" | awk '/### Event Type/{getline; getline; print}' | xargs)
+          EVENT_NAME=$(echo "$BODY" | awk '/### Event Name/{getline; getline; print}' | xargs)
+          DATE=$(echo "$BODY" | awk '/### Date/{getline; getline; print}' | xargs)
+          LOCATION=$(echo "$BODY" | awk '/### Location/{getline; getline; print}' | xargs)
+          DESCRIPTION=$(echo "$BODY" | awk '/### Description/{getline; getline; print}' | xargs)
+          ORGANIZER=$(echo "$BODY" | awk '/### Your Name/{getline; getline; print}' | xargs)
           
           FILENAME=$(echo "$EVENT_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g').md
           
           cat > "events/$FILENAME" << EOF
           # $EVENT_NAME
 
+          **Type:** $EVENT_TYPE
           **Date:** $DATE
           **Location:** $LOCATION
           **Organizer:** $ORGANIZER
@@ -36,19 +42,24 @@ jobs:
           ## Description
           $DESCRIPTION
           EOF
+          
+          echo "Created file: events/$FILENAME"
+          cat "events/$FILENAME"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Add event from submission"
-          branch: event/issue-${{ github.event.issue.number }}
-          title: "Event: ${{ github.event.issue.title }}"
+          commit-message: "Add event: ${{ github.event.issue.title }}"
+          branch: event-${{ github.event.issue.number }}
+          title: "New Event: ${{ github.event.issue.title }}"
           body: |
-            Auto-generated from submission.
+            Auto-generated from form submission.
             
-            Review and merge to publish the event.
+            Closes #${{ github.event.issue.number }}
           labels: event-submission
+          add-paths: |
+            events/*
 
       - name: Close and comment on issue
         uses: actions/github-script@v6
@@ -58,7 +69,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '✅ Thank you! Your submission has been converted to a Pull Request for review. This issue will be closed automatically.'
+              body: '✅ Thank you! Your submission has been converted to a Pull Request for review.'
             });
             
             await github.rest.issues.update({
