@@ -1,0 +1,62 @@
+name: Convert Issue to PR
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  create-pr:
+    if: contains(github.event.issue.labels.*.name, 'event-submission')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Parse issue and create file
+        run: |
+          mkdir -p events
+          
+          # Extract data from issue body
+          ISSUE_BODY="${{ github.event.issue.body }}"
+          EVENT_NAME=$(echo "$ISSUE_BODY" | grep -A1 "Event Name" | tail -1 | xargs)
+          DATE=$(echo "$ISSUE_BODY" | grep -A1 "Date" | tail -1 | xargs)
+          LOCATION=$(echo "$ISSUE_BODY" | grep -A1 "Location" | tail -1 | xargs)
+          ORGANIZER=$(echo "$ISSUE_BODY" | grep -A1 "Your Name" | tail -1 | xargs)
+          DESCRIPTION=$(echo "$ISSUE_BODY" | sed -n '/Description/,/Your Name/p' | sed '1d;$d' | xargs)
+          
+          FILENAME=$(echo "$EVENT_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g').md
+          
+          cat > "events/$FILENAME" << EOF
+          # $EVENT_NAME
+
+          **Date:** $DATE
+          **Location:** $LOCATION
+          **Organizer:** $ORGANIZER
+
+          ## Description
+          $DESCRIPTION
+          EOF
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Add event from issue #${{ github.event.issue.number }}"
+          branch: event/issue-${{ github.event.issue.number }}
+          title: "Event: ${{ github.event.issue.title }}"
+          body: |
+            Closes #${{ github.event.issue.number }}
+            
+            Auto-generated from issue submission.
+          labels: event-submission
+
+      - name: Comment on issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Thanks! A pull request has been created for review.'
+            })
